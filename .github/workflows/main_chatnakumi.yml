@@ -23,18 +23,9 @@ jobs:
           python -m venv venv
           source venv/bin/activate
 
-      - name: Create .env file from secrets
-        run: |
-          echo "MYSQL_HOST=${{ secrets.MYSQL_HOST }}" >> .env
-          echo "MYSQL_PORT=${{ secrets.MYSQL_PORT }}" >> .env
-          echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> .env
-          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
-          echo "MYSQL_DB=${{ secrets.MYSQL_DB }}" >> .env
-          echo "FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}" >> .env
-
       - name: Install dependencies
         run: pip install -r requirements.txt
-        
+
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
@@ -63,6 +54,16 @@ jobs:
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
+
+      # Add step to set environment variables from GitHub secrets
+      - name: Set environment variables
+        run: |
+          echo "MYSQL_HOST=${{ secrets.MYSQL_HOST }}" >> $GITHUB_ENV
+          echo "MYSQL_PORT=${{ secrets.MYSQL_PORT }}" >> $GITHUB_ENV
+          echo "MYSQL_USER=${{ secrets.MYSQL_USER }}" >> $GITHUB_ENV
+          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> $GITHUB_ENV
+          echo "MYSQL_DB=${{ secrets.MYSQL_DB }}" >> $GITHUB_ENV
+          echo "FLASK_SECRET_KEY=${{ secrets.FLASK_SECRET_KEY }}" >> $GITHUB_ENV
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
