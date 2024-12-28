@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chat Embed</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+        }
+        #chat-logo {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 30px; /* Adjust size of the icon */
+        }
+        #chat-box {
+            position: fixed;
+            bottom: 80px;
+            left: 20px;
+            width: 300px;
+            display: none;
+            flex-direction: column;
+            overflow: hidden; /* Prevent scrolling in the chat box */
+        }
+        #chat-messages {
+            display: flex;
+            flex-direction: column-reverse;
+            pointer-events: none;
+            overflow: hidden; /* Prevent scrolling in the message container */
+        }
+        .chat-message {
+            font-family: 'Roboto', sans-serif;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+            opacity: 0;
+            transform: translateY(20px); /* Start below */
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            word-wrap: break-word; /* Ensure long words break properly */
+            white-space: normal; /* Allow text to wrap */
+        }
+        .chat-message.show {
+            opacity: 1;
+            transform: translateY(0); /* Move to normal position */
+        }
+        .chat-message.fade-out {
+            opacity: 0;
+            transform: translateY(-20px); /* Move up while fading out */
+        }
+        #chat-input {
+            display: flex;
+            margin-top: 10px;
+        }
+        #chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        #chat-input input:focus {
+            outline: none;  /* Remove the default focus outline */
+            box-shadow: none; /* Remove any box shadow effects on focus */
+        }
+        #chat-input button {
+            background: rgb(44, 68, 94, 0.6);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-left: 5px;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-logo"><i class="fas fa-comment"></i></div> <!-- Chat icon instead of text -->
+    <div id="chat-box">
+        <div id="chat-messages"></div>
+        <div id="chat-input">
+            <input type="text" id="chat-message-input" placeholder="Type message...">
+            <button id="chat-send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatLogo = document.getElementById('chat-logo');
+        const chatBox = document.getElementById('chat-box');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-message-input');
+        const sendButton = document.getElementById('chat-send-button');
+        let currentIndex = 0;
+        let currentMessages = [];
+
+        chatLogo.addEventListener('click', () => {
+            chatBox.style.display = chatBox.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        async function fetchMessages() {
+            try {
+                const response = await fetch('/get_messages');
+                const messages = await response.json();
+                if (JSON.stringify(messages) !== JSON.stringify(currentMessages)) {
+                    currentMessages = messages;
+                    currentIndex = 0; // Reset index saat ada pembaruan pesan
+                }
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+            }
+        }
+
+        function displayMessage() {
+            if (currentMessages.length === 0) return;
+
+            // Hapus pesan lama
+            chatMessages.innerHTML = '';
+
+            // Ambil pesan berdasarkan index
+            const message = currentMessages[currentIndex];
+
+            // Buat bubble chat
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-message';
+            bubble.textContent = message;
+            chatMessages.appendChild(bubble);
+
+            // Animasi muncul
+            setTimeout(() => {
+                bubble.classList.add('show');
+            }, 100);
+
+            // Animasi menghilang
+            setTimeout(() => {
+                bubble.classList.add('fade-out');
+            }, 4000); // Add fade-out after a certain time
+
+            // Perbarui index untuk pesan berikutnya
+            currentIndex = (currentIndex + 1) % currentMessages.length;
+
+            // Jadwalkan pesan berikutnya
+            setTimeout(displayMessage, 5000);
+        }
+
+        sendButton.addEventListener('click', async () => {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            try {
+                await fetch('/send_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message }),
+                });
+
+                chatInput.value = '';
+                await fetchMessages(); // Perbarui pesan setelah mengirim
+            } catch (error) {
+                console.error('Error sending message:', error);
+            }
+        });
+
+        // Menambahkan event listener untuk menangani tombol Enter
+        chatInput.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();  // Mencegah form submission (jika ada)
+                sendButton.click();  // Memicu fungsi pengiriman pesan
+            }
+        });
+
+        async function initialize() {
+            await fetchMessages();
+            displayMessage(); // Mulai tampilan pesan satu per satu
+            setInterval(fetchMessages, 3000); // Sinkronisasi pesan setiap 3 detik
+        }
+
+        initialize();
+    </script>
+</body>
+</html>
